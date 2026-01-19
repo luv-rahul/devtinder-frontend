@@ -310,3 +310,495 @@ devtinder-frontend/
 - **Routing:** React Router DOM
 
 ---
+
+# 🚀 DevTinder - Login & Redux Setup
+
+## 🔐 Login Page
+
+### Installation
+
+```bash
+npm i axios
+```
+
+### components/Login.jsx (Basic)
+
+```js
+import axios from "axios";
+import { useState } from "react";
+
+const Login = () => {
+  const [emailId, setEmailId] = useState("rahul12@gmail.com");
+  const [password, setPassword] = useState("Rahul@123");
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post("http://localhost:7777/login", {
+        emailId,
+        password,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  return (
+    <div className="flex justify-center my-10">
+      <div className="card bg-base-300 text-primary-content w-96">
+        <div className="card-body">
+          <h2 className="card-title underline">Login Form</h2>
+          <div>
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Email Id</legend>
+              <input
+                type="text"
+                className="input"
+                placeholder="Enter Email Id"
+                value={emailId}
+                onChange={(e) => setEmailId(e.target.value)}
+              />
+            </fieldset>
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Password</legend>
+              <input
+                type="password"
+                className="input"
+                placeholder="Enter Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </fieldset>
+          </div>
+          <div className="card-actions justify-center">
+            <button className="btn" onClick={handleLogin}>
+              Login
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+```
+
+---
+
+## ⚠️ Common Issues & Solutions
+
+### Problems Faced
+
+1. **CORS error**
+2. **Cookies not setting in Application Tab of browser dev tools**
+
+---
+
+### ✅ Solution 1: Enable CORS
+
+#### Backend: devtinder-backend/app.js
+
+**Installation:**
+
+```bash
+npm i cors
+```
+
+**Basic CORS Setup:**
+
+```js
+app.use(cors());
+```
+
+---
+
+### ✅ Solution 2: Configure CORS with Credentials
+
+> **Issue:** Axios doesn't allow cookies to set on unsecured network such as HTTP protocol.
+
+#### Backend: devtinder-backend/app.js
+
+```js
+app.use(
+  cors({
+    origin: "http://localhost:5173", // whitelist this domain
+    credentials: true,
+  }),
+);
+```
+
+#### Frontend: Login.jsx
+
+> **Note:** `withCredentials: true` → Token will be stored and sent to every API call.
+
+```js
+const handleLogin = async () => {
+  try {
+    const response = await axios.post(
+      "http://localhost:7777/login",
+      {
+        emailId,
+        password,
+      },
+      { withCredentials: true },
+    );
+  } catch (error) {
+    console.log(error);
+  }
+};
+```
+
+---
+
+## 🔧 Redux Setup
+
+### Installation
+
+```bash
+npm i @reduxjs/toolkit react-redux
+```
+
+### Steps
+
+1. Create a `utils` folder
+2. Create `appStore`
+3. Configure Store
+4. Provide store to application
+5. Create Slice
+6. Add slice to store
+
+---
+
+## 🏪 Configure Store
+
+### utils/appStore.js (Initial)
+
+```js
+import { configureStore } from "@reduxjs/toolkit";
+
+const appStore = configureStore({
+  reducer: {},
+});
+
+export default appStore;
+```
+
+---
+
+## 🔌 Provide Store to Application
+
+### App.jsx (With Provider)
+
+```jsx
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Login from "./components/Login";
+import Body from "./components/Body";
+import Profile from "./components/Profile";
+import { Provider } from "react-redux";
+import appStore from "./utils/appStore";
+
+const App = () => {
+  return (
+    <>
+      <Provider store={appStore}>
+        <BrowserRouter basename="/">
+          <Routes>
+            <Route path="/" element={<Body />}>
+              <Route path="/login" element={<Login />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </Provider>
+    </>
+  );
+};
+
+export default App;
+```
+
+---
+
+## 🔪 Create User Slice
+
+### utils/userSlice.js
+
+```js
+import { createSlice } from "@reduxjs/toolkit";
+
+const userSlice = createSlice({
+  name: "user",
+  initialState: null,
+  reducers: {
+    addUser: (state, action) => {
+      return action.payload;
+    },
+    removeUser: () => {
+      return null;
+    },
+  },
+});
+
+export const { addUser, removeUser } = userSlice.actions;
+export default userSlice.reducer;
+```
+
+---
+
+## ➕ Add Slice to Store
+
+### utils/appStore.js (Updated)
+
+```js
+import { configureStore } from "@reduxjs/toolkit";
+import UserReducer from "./userSlice";
+
+const appStore = configureStore({
+  reducer: {
+    user: UserReducer,
+  },
+});
+
+export default appStore;
+```
+
+---
+
+## 🔑 Login with Redux
+
+### utils/constants.js
+
+```js
+export const BASE_URL = "http://localhost:7777/";
+```
+
+### components/Login.jsx (Final)
+
+```js
+import axios from "axios";
+import { useState } from "react";
+import { useDispatch } from "react-redux";
+import { addUser } from "../utils/userSlice";
+import { useNavigate } from "react-router-dom";
+import { BASE_URL } from "../utils/constants";
+
+const Login = () => {
+  const [emailId, setEmailId] = useState("rahul12@gmail.com");
+  const [password, setPassword] = useState("Rahul@123");
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post(
+        BASE_URL + "login",
+        {
+          emailId,
+          password,
+        },
+        { withCredentials: true },
+      );
+      if (response.status === 200) {
+        const { user } = response.data;
+        dispatch(addUser(user));
+      }
+      navigate("/");
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  return (
+    <div className="flex justify-center my-10">
+      <div className="card bg-base-300 text-primary-content w-96 py-10">
+        <div className="card-body">
+          <h2 className="card-title underline">Login Form</h2>
+          <div>
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Email Id</legend>
+              <input
+                type="text"
+                className="input"
+                placeholder="Enter Email Id"
+                value={emailId}
+                onChange={(e) => setEmailId(e.target.value)}
+              />
+            </fieldset>
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Password</legend>
+              <input
+                type="password"
+                className="input"
+                placeholder="Enter Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </fieldset>
+          </div>
+          <div className="card-actions justify-center">
+            <button className="btn" onClick={handleLogin}>
+              Login
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+```
+
+---
+
+## 📺 Feed Component
+
+### components/Feed.jsx
+
+```js
+const Feed = () => {
+  return <div>Feed</div>;
+};
+
+export default Feed;
+```
+
+---
+
+## 🛣️ Updated App Routes
+
+### App.jsx (With Feed)
+
+```jsx
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Login from "./components/Login";
+import Body from "./components/Body";
+import Profile from "./components/Profile";
+import { Provider } from "react-redux";
+import appStore from "./utils/appStore";
+import Feed from "./components/Feed";
+
+const App = () => {
+  return (
+    <>
+      <Provider store={appStore}>
+        <BrowserRouter basename="/">
+          <Routes>
+            <Route path="/" element={<Body />}>
+              <Route path="/" element={<Feed />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </Provider>
+    </>
+  );
+};
+
+export default App;
+```
+
+---
+
+## 🧭 Updated Navbar with User State
+
+### components/Navbar.jsx
+
+```js
+import { useSelector } from "react-redux";
+
+const Navbar = () => {
+  const user = useSelector((store) => store.user);
+
+  return (
+    <div>
+      <div className="navbar bg-base-200 shadow-sm">
+        <div className="flex-1">
+          <a className="btn btn-ghost text-xl">DevTinder</a>
+        </div>
+        <div className="flex gap-2">
+          {user && (
+            <div className="dropdown dropdown-end mx-4">
+              <div className="flex items-center gap-4">
+                <h1 className="font-bold">Welcome, {user.firstName}</h1>
+                <div
+                  tabIndex={0}
+                  role="button"
+                  className="btn btn-ghost btn-circle avatar"
+                >
+                  <div className="w-10 rounded-full">
+                    <img
+                      alt="Tailwind CSS Navbar component"
+                      src={user.photoURL}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <ul
+                tabIndex="-1"
+                className="menu menu-sm dropdown-content bg-base-200 rounded-box z-1 mt-3 w-52 p-2 shadow"
+              >
+                <li>
+                  <a>Logout</a>
+                </li>
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Navbar;
+```
+
+---
+
+## 🔄 Redux Flow Summary
+
+| Step | Action                       | File         |
+| ---- | ---------------------------- | ------------ |
+| 1    | User submits login form      | Login.jsx    |
+| 2    | API call with credentials    | Login.jsx    |
+| 3    | Dispatch addUser action      | Login.jsx    |
+| 4    | User data stored in Redux    | userSlice.js |
+| 5    | Navbar reads user from store | Navbar.jsx   |
+| 6    | Display user info            | Navbar.jsx   |
+
+---
+
+## 📋 CORS Configuration Summary
+
+| Configuration   | Backend                 | Frontend                |
+| --------------- | ----------------------- | ----------------------- |
+| **Origin**      | `http://localhost:5173` | -                       |
+| **Credentials** | `true`                  | `withCredentials: true` |
+| **Package**     | `cors`                  | `axios`                 |
+
+---
+
+## 🎯 Key Concepts
+
+### 1. withCredentials
+
+> Allows Axios to send and receive cookies with cross-origin requests
+
+### 2. CORS Configuration
+
+> Enables frontend to make requests to backend on different origin
+
+### 3. Redux Flow
+
+```
+Login → Dispatch Action → Update Store → Component Re-renders
+```
+
+### 4. Protected Routes
+
+> Navbar conditionally renders based on user authentication state
+
+---
