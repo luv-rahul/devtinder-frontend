@@ -802,3 +802,533 @@ Login → Dispatch Action → Update Store → Component Re-renders
 > Navbar conditionally renders based on user authentication state
 
 ---
+
+## 🔐 User Access Control
+
+User is accessible to pages only when authorized.
+
+### Body Component
+
+**File:** `Body.jsx`
+
+```javascript
+import Navbar from "./Navbar";
+import { Outlet, useNavigate } from "react-router-dom";
+import Footer from "./Footer";
+import axios from "axios";
+import { BASE_URL } from "../utils/constants";
+import { useDispatch, useSelector } from "react-redux";
+import { addUser } from "../utils/userSlice";
+import { useEffect } from "react";
+
+const Body = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const user = useSelector((store) => store.user);
+
+  const fetchUser = async () => {
+    try {
+      const res = await axios.get(BASE_URL + "profile/view", {
+        withCredentials: true,
+      });
+      if (res.status === 200) {
+        const { user } = res.data;
+        dispatch(addUser(user));
+      }
+    } catch (error) {
+      if (error.status === 401) {
+        navigate("/login");
+      }
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) {
+      fetchUser();
+    }
+  }, []);
+
+  return (
+    <div>
+      <Navbar />
+      <Outlet />
+      <Footer />
+    </div>
+  );
+};
+
+export default Body;
+```
+
+---
+
+## 🚪 Logout
+
+### Navbar Component
+
+**File:** `Navbar.jsx`
+
+```javascript
+import { useDispatch, useSelector } from "react-redux";
+import { Link, useNavigate } from "react-router-dom";
+import { BASE_URL } from "../utils/constants";
+import axios from "axios";
+import { removeUser } from "../utils/userSlice";
+
+const Navbar = () => {
+  const user = useSelector((store) => store.user);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const handleLogout = async () => {
+    try {
+      const res = await axios.post(
+        BASE_URL + "logout",
+        {},
+        { withCredentials: true },
+      );
+      if (res.status === 200) {
+        dispatch(removeUser());
+        navigate("/login");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  return (
+    <div>
+      <div className="navbar bg-base-200 shadow-sm">
+        <div className="flex-1">
+          <Link to="/" className="btn btn-ghost text-xl">
+            DevTinder
+          </Link>
+        </div>
+        <div className="flex gap-2">
+          {user && (
+            <div className="dropdown dropdown-end mx-4">
+              <div className="flex items-center gap-4">
+                <h1 className="font-bold">Welcome, {user.firstName}</h1>
+                <div
+                  tabIndex={0}
+                  role="button"
+                  className="btn btn-ghost btn-circle avatar"
+                >
+                  <div className="w-10 rounded-full">
+                    <img
+                      alt="Tailwind CSS Navbar component"
+                      src={user.photoURL}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <ul
+                tabIndex="-1"
+                className="menu menu-sm dropdown-content bg-base-200 rounded-box z-1 mt-3 w-52 p-2 shadow"
+              >
+                <li>
+                  <Link to="/profile">Profile</Link>
+                </li>
+                <li>
+                  <Link onClick={handleLogout}>Logout</Link>
+                </li>
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Navbar;
+```
+
+---
+
+## ⚠️ Error Handling
+
+### Login Component
+
+**File:** `Login.jsx`
+
+```javascript
+import axios from "axios";
+import { useState } from "react";
+import { useDispatch } from "react-redux";
+import { addUser } from "../utils/userSlice";
+import { useNavigate } from "react-router-dom";
+import { BASE_URL } from "../utils/constants";
+
+const Login = () => {
+  const [emailId, setEmailId] = useState("rahul12@gmail.com");
+  const [password, setPassword] = useState("Rahul@123");
+  const [error, setError] = useState("");
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post(
+        BASE_URL + "login",
+        {
+          emailId,
+          password,
+        },
+        { withCredentials: true },
+      );
+      if (response.status === 200) {
+        const { user } = response.data;
+        dispatch(addUser(user));
+        navigate("/");
+      }
+    } catch (error) {
+      setError(error?.response?.data || "Something went wrong");
+      console.log(error);
+    }
+  };
+
+  return (
+    <div className="flex justify-center my-10">
+      <div className="card bg-base-300 text-primary-content w-96 py-10">
+        <div className="card-body">
+          <h2 className="card-title underline">Login Form</h2>
+          <div>
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Email Id</legend>
+              <input
+                type="text"
+                className="input"
+                placeholder="Enter Email Id"
+                value={emailId}
+                onChange={(e) => setEmailId(e.target.value)}
+              />
+            </fieldset>
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Password</legend>
+              <input
+                type="password"
+                className="input"
+                placeholder="Enter Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </fieldset>
+          </div>
+          <div className="card-actions justify-center">
+            <p className="text-red-500">{error}</p>
+            <button className="btn" onClick={handleLogin}>
+              Login
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+```
+
+---
+
+## 📰 Feed
+
+### Feed Slice
+
+**File:** `feedSlice.js`
+
+```javascript
+import { createSlice } from "@reduxjs/toolkit";
+
+const feedSlice = createSlice({
+  name: "feed",
+  initialState: null,
+  reducers: {
+    addFeed: (state, action) => {
+      return action.payload;
+    },
+    removeFeed: () => {
+      return null;
+    },
+  },
+});
+
+export const { addFeed, removeFeed } = feedSlice.actions;
+export default feedSlice.reducer;
+```
+
+### App Store
+
+**File:** `appStore.js`
+
+```javascript
+import { configureStore } from "@reduxjs/toolkit";
+import UserReducer from "./userSlice";
+import FeedReducer from "./feedSlice";
+
+const appStore = configureStore({
+  reducer: {
+    user: UserReducer,
+    feed: FeedReducer,
+  },
+});
+
+export default appStore;
+```
+
+### Feed Component
+
+**File:** `Feed.jsx`
+
+```javascript
+import axios from "axios";
+import { BASE_URL } from "../utils/constants";
+import { useDispatch, useSelector } from "react-redux";
+import { addFeed } from "../utils/feedSlice";
+import { useEffect } from "react";
+import UserCard from "./UserCard";
+
+const Feed = () => {
+  const dispatch = useDispatch();
+  const feed = useSelector((store) => store.feed);
+
+  const getFeed = async () => {
+    try {
+      const res = await axios.get(BASE_URL + "feed", { withCredentials: true });
+      if (res.status === 200) {
+        dispatch(addFeed(res.data.data));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    if (!feed) {
+      getFeed();
+    }
+  }, []);
+
+  console.log(feed);
+
+  return (
+    <div className="flex justify-center my-10">
+      {feed && <UserCard user={feed[0]} />}
+    </div>
+  );
+};
+
+export default Feed;
+```
+
+### User Card Component
+
+**File:** `UserCard.jsx`
+
+```javascript
+const UserCard = ({ user }) => {
+  const { firstName, lastName, about, photoURL, age, gender } = user;
+  return (
+    <div className="card bg-base-200 w-96 shadow-sm p-3 rounded-lg">
+      <figure>
+        <img src={photoURL} alt="Shoes" />
+      </figure>
+      <div className="card-body">
+        <h2 className="card-title">{`${firstName} ${lastName}`}</h2>
+        {age && gender && (
+          <p>
+            Age : {age} | {gender.toUpperCase()}
+          </p>
+        )}
+        <p>{about}</p>
+        <div className="card-actions justify-center py-2">
+          <button className="btn btn-primary">Ignore</button>
+          <button className="btn btn-secondary">Interested</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default UserCard;
+```
+
+---
+
+## ✏️ Edit Profile
+
+### Profile Component
+
+**File:** `Profile.jsx`
+
+```javascript
+import { useSelector } from "react-redux";
+import EditProfile from "./EditProfile";
+
+const Profile = () => {
+  const user = useSelector((store) => store.user);
+  if (!user) {
+    return;
+  }
+
+  return (
+    user && (
+      <div>
+        <EditProfile user={user} />
+      </div>
+    )
+  );
+};
+
+export default Profile;
+```
+
+### Edit Profile Component
+
+**File:** `EditProfile.jsx`
+
+```javascript
+import { useState } from "react";
+import UserCard from "./UserCard";
+import axios from "axios";
+import { BASE_URL } from "../utils/constants";
+import { useDispatch } from "react-redux";
+import { addUser } from "../utils/userSlice";
+
+const EditProfile = ({ user }) => {
+  const [firstName, setFirstName] = useState(user.firstName);
+  const [lastName, setLastName] = useState(user.lastName);
+  const [age, setAge] = useState(user.age);
+  const [photoURL, setPhotoURL] = useState(user.photoURL);
+  const [gender, setGender] = useState(user.gender);
+  const [about, setAbout] = useState(user.about);
+  const [error, setError] = useState("");
+  const [showToast, setShowToast] = useState(false);
+
+  const dispatch = useDispatch();
+
+  const handleEdit = async () => {
+    try {
+      const res = await axios.patch(
+        BASE_URL + "profile/edit",
+        { firstName, lastName, age, photoURL, gender, about },
+        { withCredentials: true },
+      );
+      if (res.status === 200) {
+        dispatch(addUser(res.data.user));
+
+        setError("");
+
+        setShowToast(true);
+
+        const i = setInterval(() => {
+          setShowToast(false);
+          clearInterval(i);
+        }, 2000);
+      }
+    } catch (error) {
+      console.log(error);
+      setError(error.response.data);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex justify-center my-10">
+        <div className="mx-10">
+          <div className="card bg-base-300 text-primary-content w-96 py-10">
+            <div className="card-body">
+              <h2 className="card-title underline">Edit Profile</h2>
+              <div>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">First Name</legend>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Last Name</legend>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">PhotoURL</legend>
+                  <input
+                    type="url"
+                    className="input"
+                    placeholder="Enter PhotoURL"
+                    value={photoURL}
+                    onChange={(e) => setPhotoURL(e.target.value)}
+                  />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Age</legend>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="Enter Age"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                  />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Gender</legend>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter Gender"
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                  />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">About</legend>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter About"
+                    value={about}
+                    onChange={(e) => setAbout(e.target.value)}
+                  />
+                </fieldset>
+              </div>
+              <div className="card-actions justify-center">
+                <p className="text-red-500">{error}</p>
+                <button className="btn" onClick={handleEdit}>
+                  Update Profile
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <UserCard
+          user={{ firstName, lastName, age, photoURL, gender, about }}
+        />
+      </div>
+      {showToast && (
+        <div className="toast toast-top toast-center">
+          <div className="alert alert-success">
+            <span>Profile Updated Successfully!</span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default EditProfile;
+```
