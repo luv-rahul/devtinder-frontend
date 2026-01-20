@@ -14,7 +14,6 @@ const Requests = () => {
       const response = await axios.get(BASE_URL + "user/requests/received", {
         withCredentials: true,
       });
-      console.log(response);
       if (response.status === 200) {
         dispatch(addRequest(response.data));
       }

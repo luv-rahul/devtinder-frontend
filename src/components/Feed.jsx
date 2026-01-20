@@ -26,11 +26,13 @@ const Feed = () => {
     }
   }, []);
 
-  console.log(feed);
+  if (!feed || feed.length === 0) {
+    return <h1 className="text-center font-bold my-10">Feed is empty!</h1>;
+  }
 
   return (
     <div className="flex justify-center my-10">
-      {feed && <UserCard user={feed[0]} />}
+      <UserCard user={feed[0]} />
     </div>
   );
 };

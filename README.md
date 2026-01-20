@@ -1690,3 +1690,305 @@ export default Requests;
 ```
 
 ---
+
+# 📰 Feed & Signup Form
+
+Complete implementation guide for user feed management and authentication forms.
+
+---
+
+## 📡 Feed Management
+
+### **feedSlice.jsx**
+
+```js
+import { createSlice } from "@reduxjs/toolkit";
+
+const feedSlice = createSlice({
+  name: "feed",
+  initialState: null,
+  reducers: {
+    addFeed: (state, action) => {
+      return action.payload;
+    },
+    removeFeed: () => {
+      return null;
+    },
+    removeUser: (state, action) => {
+      const newFeed = state.filter((item) => item._id != action.payload);
+      return newFeed;
+    },
+  },
+});
+
+export const { addFeed, removeFeed, removeUser } = feedSlice.actions;
+export default feedSlice.reducer;
+```
+
+---
+
+### **Feed.jsx**
+
+```js
+import axios from "axios";
+import { BASE_URL } from "../utils/constants";
+import { useDispatch, useSelector } from "react-redux";
+import { addFeed } from "../utils/feedSlice";
+import { useEffect } from "react";
+import UserCard from "./UserCard";
+
+const Feed = () => {
+  const dispatch = useDispatch();
+  const feed = useSelector((store) => store.feed);
+
+  const getFeed = async () => {
+    try {
+      const res = await axios.get(BASE_URL + "feed", { withCredentials: true });
+      if (res.status === 200) {
+        dispatch(addFeed(res.data.data));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    if (!feed) {
+      getFeed();
+    }
+  }, []);
+
+  if (!feed || feed.length === 0) {
+    return <h1 className="text-center font-bold my-10">Feed is empty!</h1>;
+  }
+
+  return (
+    <div className="flex justify-center my-10">
+      <UserCard user={feed[0]} />
+    </div>
+  );
+};
+
+export default Feed;
+```
+
+---
+
+### **UserCard.jsx**
+
+```js
+import axios from "axios";
+import { BASE_URL } from "../utils/constants";
+import { useDispatch } from "react-redux";
+import { removeUser } from "../utils/feedSlice";
+
+const UserCard = ({ user }) => {
+  const dispatch = useDispatch();
+
+  const handleSendRequest = async (status, _id) => {
+    try {
+      const response = await axios.post(
+        BASE_URL + `request/send/${status}/${_id}`,
+        {},
+        { withCredentials: true },
+      );
+      if (response.status === 200) {
+        dispatch(removeUser(response.data.data.toUserId));
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const { firstName, lastName, about, photoURL, age, gender, _id } = user;
+  return (
+    <div className="card bg-base-200 w-96 shadow-sm m-2">
+      <figure>
+        <img src={photoURL} className="h-40" alt="user-photo" />
+      </figure>
+      <div className="card-body">
+        <h2 className="card-title">{`${firstName} ${lastName}`}</h2>
+        <div>
+          {age && <span>Age : {age}</span>} {"| "}
+          {gender && <span>Gender : {gender}</span>}
+        </div>
+        <p>{about}</p>
+        <div className="card-actions justify-center py-2">
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              handleSendRequest("ignore", _id);
+            }}
+          >
+            Ignore
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              handleSendRequest("interested", _id);
+            }}
+          >
+            Interested
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default UserCard;
+```
+
+---
+
+## 🔐 Signup Form
+
+### **Login.jsx**
+
+```js
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { addUser } from "../utils/userSlice";
+import { useNavigate } from "react-router-dom";
+import { BASE_URL } from "../utils/constants";
+
+const Login = () => {
+  const [emailId, setEmailId] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [error, setError] = useState("");
+  const [isLoginForm, setIsLoginForm] = useState(true);
+
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const user = useSelector((store) => store.user);
+
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post(
+        BASE_URL + "login",
+        {
+          emailId,
+          password,
+        },
+        { withCredentials: true },
+      );
+      if (response.status === 200) {
+        const { user } = response.data;
+        dispatch(addUser(user));
+      }
+    } catch (error) {
+      setError(error?.response?.data || "Something went wrong");
+      console.log(error);
+    }
+  };
+
+  const handleSignup = async () => {
+    try {
+      const response = await axios.post(
+        BASE_URL + "signup",
+        {
+          firstName,
+          lastName,
+          emailId,
+          password,
+        },
+        { withCredentials: true },
+      );
+      console.log(response);
+      if (response.status === 200) {
+        dispatch(addUser(response.data.data));
+        navigate("/profile");
+      }
+    } catch (error) {
+      setError(error?.response?.data || "Something went wrong");
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, isLoginForm, navigate]);
+
+  return (
+    <div className="flex justify-center my-10">
+      <div className="card bg-base-300 text-primary-content w-96 py-10">
+        <div className="card-body">
+          <h2 className="card-title underline">
+            {isLoginForm ? "Login Form" : "SignUp Form"}
+          </h2>
+          <div>
+            {!isLoginForm && (
+              <div>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">FirstName</legend>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                  />
+                </fieldset>
+                <fieldset className="fieldset">
+                  <legend className="fieldset-legend">Last Name</legend>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                  />
+                </fieldset>
+              </div>
+            )}
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Email Id</legend>
+              <input
+                type="text"
+                className="input"
+                placeholder="Enter Email Id"
+                value={emailId}
+                onChange={(e) => setEmailId(e.target.value)}
+              />
+            </fieldset>
+            <fieldset className="fieldset">
+              <legend className="fieldset-legend">Password</legend>
+              <input
+                type="password"
+                className="input"
+                placeholder="Enter Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </fieldset>
+          </div>
+          <div className="card-actions justify-center">
+            <p className="text-red-500">{error}</p>
+            <button
+              className="btn"
+              onClick={isLoginForm ? handleLogin : handleSignup}
+            >
+              {isLoginForm ? "Login" : "Signup"}
+            </button>
+          </div>
+          <p
+            className="font-bold cursor-pointer hover:underline"
+            onClick={() => setIsLoginForm(!isLoginForm)}
+          >
+            {isLoginForm ? "New User? SignUp here!" : "Existing User? Login"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+```
+
+---

@@ -25,8 +25,10 @@ const Connections = () => {
     getConnections();
   }, []);
 
-  if (!connections) {
-    return <h1>No connections Found</h1>;
+  if (!connections || connections.length === 0) {
+    return (
+      <h1 className="font-bold text-center my-10">No connections Found</h1>
+    );
   }
 
   return (
